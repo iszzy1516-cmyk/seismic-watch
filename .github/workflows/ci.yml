@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  etl-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install dependencies
+        working-directory: etl
+        run: pip install -r requirements.txt
+      - name: Run ETL tests
+        working-directory: etl
+        run: python -m pytest -v
+
+  server-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgis:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: geo
+          POSTGRES_PASSWORD: geo
+          POSTGRES_DB: geo_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U geo -d geo_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      DATABASE_URL_TEST: postgres://geo:geo@localhost:5433/geo_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install dependencies
+        working-directory: server
+        run: npm ci
+      - name: Run server tests
+        working-directory: server
+        run: npm test
+
+  client-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - name: Install dependencies
+        working-directory: client
+        run: npm ci
+      - name: Unit tests
+        working-directory: client
+        run: npx vitest run
+      - name: Build
+        working-directory: client
+        run: npm run build
+        env:
+          # Build must succeed without a token; the app shows a setup screen.
+          VITE_MAPBOX_TOKEN: ""
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: [etl-tests, server-tests, client-tests]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build images
+        run: docker compose build
