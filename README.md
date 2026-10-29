@@ -66,6 +66,12 @@ platforms solve daily.
 
 ## 3. Live Demo
 
+**Live instance:** https://seismic-watch.iszzysec.com — self-hosted on a personal
+server (Docker Compose stack behind a Cloudflare Tunnel), seeded with real USGS
+data and streaming live events.
+
+Run it locally:
+
 ```bash
 cp .env.example .env        # add your free Mapbox token
 docker compose up --build
