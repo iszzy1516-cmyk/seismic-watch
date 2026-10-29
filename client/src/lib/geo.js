@@ -1,9 +1,21 @@
 const EARTH_RADIUS_KM = 6371;
 
+const wrapLng = (lng) => ((((lng + 180) % 360) + 360) % 360) - 180;
+const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
 export function formatBbox(bounds) {
   const sw = bounds.getSouthWest();
   const ne = bounds.getNorthEast();
-  return [sw.lng, sw.lat, ne.lng, ne.lat]
+  // Globe projection (and world copies) can report bounds beyond ±180/±90.
+  // Wrap longitudes so a dateline-spanning view keeps its antimeridian shape
+  // (the server accepts minLng > maxLng); clamp latitudes. A view spanning
+  // 360° of longitude covers everything — omit bbox for a global query.
+  if (ne.lng - sw.lng >= 360) return null;
+  const minLng = wrapLng(sw.lng);
+  const maxLng = wrapLng(ne.lng);
+  const minLat = clamp(sw.lat, -90, 90);
+  const maxLat = clamp(ne.lat, -90, 90);
+  return [minLng, minLat, maxLng, maxLat]
     .map((n) => Number(n.toFixed(6)))
     .join(',');
 }

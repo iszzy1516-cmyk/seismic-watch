@@ -21,6 +21,26 @@ describe('formatBbox', () => {
       '-122.5,37.7,-121.5,38.4'
     );
   });
+
+  it('returns null for a world-spanning (globe projection) view', () => {
+    expect(formatBbox(fakeBounds(-270, -90, 90, 90))).toBeNull();
+    expect(formatBbox(fakeBounds(-400, -45, 400, 45))).toBeNull();
+  });
+
+  it('wraps longitudes beyond ±180 into range', () => {
+    // Panned two world copies east: equivalent to a normal European view.
+    expect(formatBbox(fakeBounds(197.6, 35.4, 204.3, 44.2))).toBe(
+      '-162.4,35.4,-155.7,44.2'
+    );
+  });
+
+  it('keeps dateline-spanning bounds as antimeridian (minLng > maxLng)', () => {
+    expect(formatBbox(fakeBounds(170, -25, 190, -15))).toBe('170,-25,-170,-15');
+  });
+
+  it('clamps latitudes beyond ±90 from globe projection', () => {
+    expect(formatBbox(fakeBounds(-10, -95, 10, 95))).toBe('-10,-90,10,90');
+  });
 });
 
 describe('magColor', () => {

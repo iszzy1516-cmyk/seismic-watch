@@ -82,6 +82,12 @@ toggle Heatmap/Clusters · drop a watch zone with the radius slider and watch th
 live ticker · click a quake and route to it · the dashboard charts recompute from
 whatever is in the database.
 
+**Screenshots** (running against the live stack, seeded with real USGS data):
+
+| Clustered globe view | Map + dashboard |
+|---|---|
+| ![Clustered globe view with live event ticker](docs/screenshots/cluster-globe.png) | ![Map with error-free load, zone panel, D3 charts](docs/screenshots/dashboard.png) |
+
 ## 4. Setup Instructions
 
 Prereqs: Docker with the Compose plugin. One command:
@@ -184,9 +190,15 @@ than holding the world. Methodology and full numbers: [perf/benchmarks.md](perf/
   unreachable during the demo — exactly the case the `AbortController` timeout and
   straight-line fallback were built for. Degrade visibly (`provider: "fallback"`),
   never white-screen.
-- **The antimeridian will get you.** A naive `minLng < lon < maxLng` check silently
-  returns nothing for bboxes crossing ±180° (Fiji, New Zealand's east). Splitting
-  the filter into two OR'd envelopes is six lines and one integration test.
+- **The antimeridian will get you — twice.** A naive `minLng < lon < maxLng` check
+  silently returns nothing for bboxes crossing ±180° (Fiji, New Zealand's east), so
+  the server splits those into two OR'd envelopes. But the client can *produce*
+  out-of-range bboxes too: Mapbox's globe projection reports bounds beyond ±180°,
+  which the (correct) server validation rejected on the very first load. The fix in
+  `formatBbox` wraps longitudes, preserves genuine dateline-spanning views, clamps
+  latitudes, and sends no bbox at all for world-spanning views — four unit tests
+  cover each case.
+- **Test-container readiness races look like product bugs.** An integration suite
 - **Idempotency is a feature, not an afterthought.** Being able to re-run the ETL,
   restart the poller, and replay upserts without duplicates or stale revisions made
   every other part of the system easier to reason about — and it's the first thing
